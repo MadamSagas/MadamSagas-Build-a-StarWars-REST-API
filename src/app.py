@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User, Planets, People, Starships, FavoritePlanets
+from models import db, User, Planets, People, Starships, FavoritePlanets, FavoritePeople, FavoriteStarships
 #traer todas las tables creados
 
 app = Flask(__name__)
@@ -104,7 +104,6 @@ def get_single_starship(id):
     if single_starship is None:
         return jsonify({"msg": "El Starship con el ID: {} NO EXISTE".format(id)})
     return jsonify({"data": single_starship.serialize()}), 200
-
 
 @app.route("/planet", methods=['POST'])
 def new_planet():
@@ -213,6 +212,7 @@ def get_favorites(id):
     user = User.query.get(id)
     if user is None:
         return jsonify({"msg": f"El usuariio con ID {id} existe"}), 404
+    
     favorite_planets = db.session.query(FavoritePlanets, Planets).join(Planets).\
         filter(FavoritePlanets.user_id == id).all()
     favorite_planets_serialized = []
@@ -220,9 +220,415 @@ def get_favorites(id):
         favorite_planets_serialized.append({'favorite_planet_id': favorite_planet.id, 
                                             "planet": planet.serialize(), 
                                             "user_id": id})
-    return jsonify({"msg": "OK", "data": favorite_planets_serialized})
+        
+    favorite_people = db.session.query(FvoritePeople, People).join(People). \
+        filter(FvoritePeople.user_id == id).all()   
+    favorite_people_serialized = [] 
+    for favorite_person, person in favorite_people:
+        favorite_people_serialized.append({'favorite_person_id': favorite_person.id,
+                                           "person": person.serialize(),
+                                           "user_id": id
+                                           })
+    favorite_starships= db.session.query(FavotireStarships, Starships).join(Starships).\
+        filter(FavotireStarships.user_id == id).all()
+    favorite_starships_serialized = []
+    for favorite_starship, starship in favorite_starships:
+        favorite_starships_serialized.append({
+            'favorite_starship_id': favorite_starship.id,
+            "starship": starship.serialize(),
+            "user_id": id
+        })    
+    return jsonify({"msg": "OK", "favorite_planets": favorite_planets_serialized, "favorite_people": favorite_people_serialized, 
+                    "favorite_starships": favorite_starships_serialized})
+
+@app.route('/favorite/planet/<int:planet_id>', methods=['POST']) 
+def add_favorite_planet(planet_id):
+    body = request.get_json(silent=True)
+
+    if body is None:  
+        return jsonify({"msg": "Debes proporcionar un 'user_id' en el body de la solicitud"}), 400
+    if 'user_id' not in body:
+        return jsonify({"msg":"El campo user_id es obligatorio"}), 400
 
     
+    user_id = body['user_id']
+    user = User.query.get(user_id)
+    planet = Planets.query.get(planet_id)
+
+    if user is None:
+        return jsonify({"msg": f"El usuario con ID {user_id} no existe"}), 404
+    
+    if planet is None:
+        return jsonify({"msg": f"El planeta con el ID {planet_id}, no existe"}), 404
+    
+    existing_favorite = FavoritePlanets.query.filter_by(user_id=user_id, planet_id=planet_id).first()
+    if existing_favorite:
+        return jsonify({"msg": "El paneta ya esta en la lista de Favoritos del Usuario"}), 400
+    
+    new_fvorite = FavoritePlanets(user_id=user_id, planet_id=planet_id)
+    db.session.add(new_fvorite)
+    db.session.commit()
+
+    return jsonify({
+        "msg": "Nuevo planeta favorito añadido", 
+        "data": new_fvorite.serialize()
+        }), 201
+
+@app.route('/favorite/people/<int:people_id>', methods=['POST'])
+def add_new_favorite_people(people_id):
+    body = request.get_json(silent=True)
+    
+    if body is None:
+        return jsonify({"msg": "Debes proporcionar un 'user_id' en el body de la solicitud"}), 400
+    if 'user_id' not in body:
+        return jsonify({"msg": "El campo user_id es obligatorio"}), 400
+
+    user_id = body['user_id']
+    user = User.query.get(user_id)
+    people = People.query.get(people_id)
+
+    if user is None:
+        return jsonify({"msg": f"El usuario con ID {user_id} no existe"}), 404
+    
+    if people is None:
+        return jsonify({"msg": f"El personaje con ID {people_id} no existe"}), 404
+    
+    existing_favorites = FavoritePeople.query.filter_by(user_id=user_id, people_id=people_id).first()
+    
+    if existing_favorites:
+        return jsonify({"msg": "El personaje ya está en la lista de favoritos del usuario"}), 400
+    
+    new_favorite = FavoritePeople(user_id=user_id, people_id=people_id)
+    db.session.add(new_favorite)
+    db.session.commit()
+    
+    return jsonify({
+        "msg": "Nuevo personaje favorito añadido con éxito",
+        "data": new_favorite.serialize()
+    }), 201
+
+
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({"msg": "Debes proporcionar un user_id en el body de la solicitud"}), 400
+    if 'user_id' not in body:
+        return jsonify({"msg":"El campo user_id es obligatorio"}), 400
+
+    user_id = body['user_id']
+    user = User.query.get(user_id)
+    starship = Starships.query.get(starships_id)
+
+    if user is None:
+        return jsonify({"msg": f"El usuario con el el ID {user_id} no existew"}), 404
+    
+    if starship is None:
+        return jsonify({"msg": f"El starship con el ID {starships_id} no existe"}), 404
+    
+    existing_favorite = FavoriteStarships.query.filter_by(user_id=user_id, starships_id=starships_id).first()
+
+    if existing_favorite:
+        return jsonify({"msg": "El starship ya esta en la lista de favoritos del usuario"}), 400
+    
+    new_favorite = FavoriteStarships(user_id=user_id, starships_id=starships_id)
+    db.session.add(new_favorite)
+    db.session.commit()
+
+    return jsonify({"msg":"Nuevo starship favorito añadio",
+                    "data":new_favorite.serialize()}), 201
+
+@app.route('/favorite/starships/<int:starships_id>', methods=['POST'])
+def add_new_favorite_starship(starships_id):
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({"msg": "Debes proporcionar un user_id en el body de la solicitud"}), 400
+    if 'user_id' not in body:
+        return jsonify({"msg": "El campo user_id es obligatorio"}), 400
+
+    user_id = body['user_id']
+    user = User.query.get(user_id)
+    starship = Starships.query.get(starships_id)
+
+    if user is None:
+        return jsonify({"msg": f"El usuario con el ID {user_id} no existe"}), 404
+    
+    if starship is None:
+        return jsonify({"msg": f"El starship con el ID {starships_id} no existe"}), 404
+    
+    existing_favorite = FavoriteStarships.query.filter_by(user_id=user_id, starships_id=starships_id).first()
+
+    if existing_favorite:
+        return jsonify({"msg": "El starship ya está en la lista de favoritos del usuario"}), 400
+    
+    new_favorite = FavoriteStarships(user_id=user_id, starships_id=starships_id)
+    db.session.add(new_favorite)
+    db.session.commit()
+
+    return jsonify({"msg": "Nuevo starship favorito añadido",
+                    "data": new_favorite.serialize()}), 201
+
+@app.route('/favorite/planet/<int:planet_id>', methods=['DELETE'])
+def delete_favorite_planet(planet_id):
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({"msg": "Debes proporcionar un user_id en el body de la solicitud"}), 400
+    if 'user_id' not in body:
+        return jsonify({"msg": "El campo user_id es obligatorio"}), 400
+
+    user_id = body['user_id']
+    user = User.query.get(user_id)
+    planet = Planets.query.get(planet_id)
+
+    if user is None:
+        return jsonify({"msg": f"El planeta con el ID {user_id} no existe"}), 404
+
+    if planet is None:
+        return jsonify({"msg":f"el planeta con el ID {planet_id} no existe"}), 
+
+    favorite_planet = FavoritePlanets.query.filter_by(user_id=user_id, planet_id=planet_id).first()
+
+    if favorite_planet is None:
+        return jsonify({"msg": "El planeta no esta en la lista de favoritos del usuario"}), 404
+    
+    db.session.delete(favorite_planet)
+    db.session.commit()
+
+    return jsonify({"msg": "El planeta favorito ha sido eliminado"}), 200
+
+@app.route('/favorite/people/<int:people_id>', methods=['DELETE'])
+def delete_favorite_people(people_id):
+    # Obtener el cuerpo de la solicitud en formato JSON
+    body = request.get_json(silent=True)
+
+    # Validar que el cuerpo de la solicitud no esté vacío
+    if body is None:
+        return jsonify({"msg": "Debes proporcionar un user_id en el body de la solicitud"}), 400
+    if 'user_id' not in body:
+        return jsonify({"msg": "El campo user_id es obligatorio"}), 400
+
+    # Extraer user_id del cuerpo de la solicitud
+    user_id = body['user_id']
+
+    # Consultar la base de datos para encontrar el usuario y el personaje (people)
+    user = User.query.get(user_id)
+    people = People.query.get(people_id)
+
+    # Verificar si el usuario existe
+    if user is None:
+        return jsonify({"msg": f"El usuario con el ID {user_id} no existe"}), 404
+    
+    # Verificar si el personaje (people) existe
+    if people is None:
+        return jsonify({"msg": f"El personaje con el ID {people_id} no existe"}), 404
+
+    # Buscar el favorito específico en la base de datos
+    favorite_people = FavoritePeople.query.filter_by(user_id=user_id, people_id=people_id).first()
+
+    # Verificar si el favorito existe
+    if favorite_people is None:
+        return jsonify({"msg": "El personaje no está en la lista de favoritos del usuario"}), 404
+
+    # Eliminar el favorito de la base de datos
+    db.session.delete(favorite_people)
+    db.session.commit()
+
+    # Responder con un mensaje de éxito
+    return jsonify({"msg": "El personaje favorito ha sido eliminado"}), 200
+
+@app.route('/favorite/starship/<int:starship_id>', methods=['DELETE'])
+def delete_favorite_starship(starship_id):
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({"msg": "Debes proporcionar un user_id en el body de la solicitud"}), 400
+    
+    if 'user_id' not in body:
+        return jsonify({"msg":"El campo user_id es obligatorio"}), 400
+
+    user_id = body['user_id']
+    user = User.query.get(user_id)
+    starship = Starships.query.get(starship_id)
+
+    if user is None:
+        return jsonify({"msg": f"El usuario con el ID {user_id} no existe"}), 404
+    if starship is None:
+        return jsonify({"msg":f"El starship con el ID {starship_id} no existe"}), 404
+
+    favorite_starship = FavoriteStarships.query.filter_by(user_id=user_id, starships_id=starship_id).first()
+
+    if favorite_starship is None:
+        return jsonify({"msg": "El starship no esta en la lista de favoritos del usuario"}), 404
+    
+    db.session.delete(favorite_starship)
+    db.session.commit()
+
+    return jsonify({"msg":"El starship favorito ha sido eliminado"}), 200
+
+@app.route('/planet/<int:planet_id>', methods=['DELETE'])
+def delete_planet(planet_id):
+    planet = Planets.query.get(planet_id)
+
+    if planet is None:
+        return jsonify({"msg": f"El planeta con el ID {planet_id}, no existe"}), 404
+    
+    db.session.delete(planet)
+    db.session.commit()
+
+    return jsonify({"msg": "El planeta ha sido eliminado"}), 200
+
+@app.route('/people/<int:people_id>', methods=['DELETE'])
+def delete_people(people_id):
+    # Buscar el registro en la base de datos
+    people = People.query.get(people_id)
+
+    if people is None:
+        return jsonify({"msg": f"El personaje con el ID {people_id} no existe"}), 404
+
+    # Eliminar el registro de la base de datos
+    favorite_people = FavoritePeople.query.filter_by(people_id=people_id,).all()
+    for favorite in favorite_people:
+        db.session.delete(favorite)
+
+    db.session.delete(people)
+    db.session.commit()
+
+    return jsonify({"msg": "El personaje ha sido eliminado"}), 200
+
+@app.route('/starship/<int:starship_id>', methods=['DELETE'])
+def delete_starship(starship_id):
+    starship = Starships.query.get(starship_id)
+
+    if starship is None:
+        return jsonify({"msg":f"El starship con el ID{starship_id}, no existe"}), 404
+    
+    # favorite_starship = FavoriteStarships.query.filter_by(starship_id=starship_id).all()
+    # for favorite in favorite_starship:
+    #     db.session.delete(favorite)
+
+    db.session.delete(starship)
+    db.session.commit()
+
+    return jsonify({"msg":"El starship ha sido eliminado"}), 200
+
+@app.route('/planet/<int:planet_id>', methods=['PUT'])
+def update_planet(planet_id):
+
+    body = request.get_json(silent=True)
+    if body is None:
+        return jsonify({"msg":"Debes enviar informacion en el body"}), 400
+    
+    # Consultar la base de datos para encontrar el planeta por su ID
+    planet = Planets.query.get(planet_id)
+    if planet is None:
+        return jsonify({"msg": f"El planeta con el ID {planet_id}, no exite"}), 404
+    
+    # Actualizar los campos si están presentes en el body
+    if "name" in body:
+        planet.name = body["name"]
+    if "population" in body:
+        planet.population = body["population"]
+    if "rotation_period" in body:
+        planet.rotation_period = body["rotation_period"]
+    if "orbita_period" in body:
+        planet.orbita_period = body["orbita_period"]
+    if "diameter" in body:
+        planet.diameter = body["diameter"]
+    if "climate" in body:
+        planet.climate = body["climate"]
+    if "terrain" in body:
+        planet.terrain = body["terrain"]
+
+    db.session.commit()
+
+    return jsonify({"msg": "El planeta ha sido alctualizado",
+                    "data": planet.serialize()}), 200
+
+@app.route('/people/<int:people_id>', methods=['PUT'])
+def update_people(people_id):
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({"msg": "Debes enviar informacion el el body"}), 400
+    
+    people = People.query.get(people_id)
+
+    if people is None:
+        return jsonify({"msg":f"El personaje con el ID {people_id}, no existe"}), 404
+    
+    if "name" in body:
+        people.name = body["name"]
+    if "last_name" in body:
+        people.last_name = body["last_name"]
+    if "height" in body:
+        people.height = body["height"]
+    if "mass" in body:
+        people.mass = body["mass"]
+    if "birht_year" in body:
+        people.birht_year = body["birht_year"]
+    if "gender" in body:
+        people.gender = body["gender"]
+
+    db.session.commit()
+
+    return jsonify({"msg": "El personaje ha sido actualizado",
+                    "data": people.serialize()}), 200
+
+@app.route('/starship/<int:starship_id>', methods=['PUT'])
+def update_starship(starship_id):
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({"msg": "Debes enviar informacion en el boody"}), 400
+    
+    starship = Starships.query.get(starship_id)
+    if starship is None:
+        return jsonify({"msg": F"El starship con el ID {starship_id} no existe"}), 404
+    
+    if "name" in body:
+        starship.name = body["name"]
+    if "model" in body:
+        starship.model = body["model"]
+    if "manufacturer" in body:
+        starship.manufacturer = body["manufacturer"]
+    if "length" in body:
+        starship.length = body["length"]
+    if "crew" in body:
+        starship.crew = body["crew"]
+    if "passengers" in body:
+        starship.passengers = body["passengers"]
+
+    db.session.commit()
+
+    return jsonify({"msg": "EL starship ha sido actualizado",
+                    "data": starship.serialize()}), 200
+    
+
+
+
+    
+
+
+# Updating data
+
+# user1 = Person.query.get(person_id) <- sirve solo para PK
+# if user1 is None:
+#     return jsonify({'msg':'User not found'},404
+
+# if "username" in body:
+#     user1.username = body["username"]
+# if "email" in body:
+#     user1.email = body["email"]
+# db.session.commit()
+
+# user1 = Person.query.get(person_id)
+# if user1 is None:
+#    return jsonify({'msg':'User not found'},404
+# db.session.delete(user1)
+# db.session.commit()
+
+
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3000))

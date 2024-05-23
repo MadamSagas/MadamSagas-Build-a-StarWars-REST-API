@@ -10,7 +10,7 @@ class User(db.Model):
     is_active = db.Column(db.Boolean(), unique=False, nullable=False)
 
     def __repr__(self):
-        return 'Usuario con email: {}'.format(self.email)
+        return 'Usuario con id: {}'.format(self.id)
 
     def serialize(self):
         return {
@@ -110,9 +110,67 @@ class FavoritePlanets(db.Model):
     def __repr__(self):
         return f"Al usuario {self.user_id} le gusta el planeta {self.planet_id}"
     
-    def rerialize(self):
+    def serialize(self):
         return {
             "id": self.id, 
             "user_id": self.user_id,
             "planet_id": self.planet_id
         }
+    
+class FavoritePeople(db.Model):
+    __tablename__= "favorite_people"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    people_id = db.Column(db.Integer, db.ForeignKey('people.id'))
+    user_id_relationship = db.relationship(User)
+    people_id_relationship = db.relationship(People)
+
+    def __repr__(self):
+        return f"Al usuario {self.user_id} le gusta el personaje {self.people_id}"
+    
+    def serialize(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "people_id": self.people_id
+        }
+
+class FavoriteStarships(db.Model):
+    __tablename__ = "favorite_starships"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    starship_id = db.Column(db.Integer, db.ForeignKey('starships.id', ondelete='CASCADE'), nullable=False)
+    user_id_relationship = db.relationship(User)
+    starship_id_relationship = db.relationship(Starships, backref=db.backref('favorites', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f"User {self.user_id} likes starship {self.starship_id}"
+    
+    def serialize(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "starship_id": self.starship_id
+        }
+
+
+
+# class FavoriteStarships(db.Model):
+#     __tablename__ = "favorite_starships"
+#     id = db.Column(db.Integer, primary_key=True)
+#     user_id = db.Column(db.Integer, db.ForeignKey('user.id') ,nullable=False)
+#     starship_id = db.Column(db.Integer, db.ForeignKey('starships.id'), nullable=False)
+#     user_id_relationship = db.relationship(User)
+#     starship_id_relationship = db.relationship(Starships, cascade="all, delete")
+
+#     def __repr__(self):
+#         return f"User {self.user_id} likes starship {self.starships_id}"
+    
+#     def serialize(self):
+#         return {
+#             "id": self.id,
+#             "user_id": self.user_id,
+#             "starship_id": self.starship_id
+            
+#         }
+
